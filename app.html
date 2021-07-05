@@ -1,0 +1,552 @@
+
+<!DOCTYPE html>
+<script>
+    //wihile experimenting this allows to
+    //load the page and clear the cache
+    //https://stackoverflow.com/questions/6985507/one-time-page-refresh-after-first-page-load?answertab=votes#tab-top
+    window.onload = function() {
+    if(!window.location.hash) {
+        window.location = window.location + '#loaded';
+        window.location.reload();
+    }
+}
+</script>
+
+<script>
+//most of volcano code borrowed from
+//https://bl.ocks.org/mbhall88/3eb7f295657d9fb81f039de6642727e0
+//other inspiration
+//https://bl.ocks.org/timchu90/3da35bad73b69e1736fdb609ac6316e0
+
+</script>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">    
+    <title>Zoomable Volcano Plot with Tooltips in D3 v4</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">   
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.css" >
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.20/b-1.6.1/b-colvis-1.6.1/b-flash-1.6.1/b-html5-1.6.1/b-print-1.6.1/cr-1.5.2/datatables.min.css"/>
+	<script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+
+</head>
+<body >
+    
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="spinner-border" role="status" id="spinner">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                
+                <nav class="navbar navbar-expand-md navbar-dark bg-dark mb-4">
+                    <a class="navbar-brand" href="#">igg pull-down</a>
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarCollapse">
+                        <ul class="navbar-nav mr-auto">
+                            <li class="nav-item active">
+                            <a class="nav-link" href="#"> <span class="sr-only">(current)</span></a>
+                            </li>
+                            <li class="nav-item">
+                            <a class="nav-link" href="#"></a>
+                            </li>
+                            <li class="nav-item">
+                            <a class="nav-link disabled" href="#"></a>
+                            </li>
+                        </ul>
+                        <form class="form-inline mt-2 mt-md-0">
+                            <input class="form-control mr-sm-2" id="searchbox" type="text" placeholder="Search" aria-label="Search">
+                        </form>
+                    </div>
+                </nav>
+
+            </div>
+        </div>
+
+
+
+        <div class="row">
+
+            <div class="col-md-6">
+
+                <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <a href="#tab_chart1" class="nav-link active" data-toggle="tab"> 1 vs 5</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#tab_chart2" class="nav-link" data-toggle="tab">3 vs 5</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#tab_chart3" class="nav-link" data-toggle="tab">7 vs 5</a>
+                    </li>
+
+                </ul>
+               
+
+                <div class="tab-content">
+                    <br>
+                    <div class="tab-pane fade show active" id="tab_chart1">
+                        <div class="card">
+                            <div id="chart1"></div>
+                                       
+                        </div>
+                        
+                    </div>
+
+                    <div class="tab-pane fade" id="tab_chart2"> 
+                        <br>
+                            <div class="card">
+                                <div id="chart2"></div>              
+                            </div>
+                            
+                    </div>
+
+                    <div class="tab-pane fade" id="tab_chart3"> 
+                        <br>
+                            <div class="card">
+                                <div id="chart3"></div>         
+                            </div>
+                            
+                    </div>
+
+
+
+                        
+                </div>
+
+
+
+            </div>  
+            
+                <div class="col-md-6">
+
+                    <div id="image_place" style="padding-left: 0px;  padding-right: 0px;">
+                        <img class="img-responsive" style="padding-top: 5px" 
+                        id="theImg" src="" />
+                    </div>
+                       
+                    <table id='table1'> </table> 
+                        
+                    
+
+                 </div> 
+
+            </div>   
+
+        </div>  
+
+    </div>    
+    
+    
+
+ 
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" ></script>  
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" ></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" ></script>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.20/b-1.6.1/b-colvis-1.6.1/b-flash-1.6.1/b-html5-1.6.1/b-print-1.6.1/cr-1.5.2/datatables.min.js"></script>
+ 
+    
+
+    <script>
+    //input file
+    var file = "indata.csv";
+    
+    //
+    var tabulate = function (data, columns, table_id) {
+        var table = d3.select(table_id)//.append('table')
+        var thead = table.append('thead')
+        var tbody = table.append('tbody')
+   
+        thead.append('tr')
+        .selectAll('th')
+	    .data(columns)
+        .enter()
+        .append('th')
+        .text(function (d) { return d })
+        
+        var rows = tbody.selectAll('tr')
+        .data(data)
+        .enter()
+        .append('tr')
+        
+        var cells = rows.selectAll('td')
+        .data(function(row) {
+            return columns.map(function (column) {
+                return { column: column, value: row[column] }
+            })
+        })
+        .enter()
+        .append('td')
+        .text(function (d) { return d.value })
+        
+        return table;
+    }
+ 
+
+    //d3 to read the tabular data
+    //create table and plots
+    d3.csv(file).then(function(data){
+
+        //if (error) console.log(error);
+
+        //var plot_1 = d3.select('#chart1');
+        //plot_1.data([data]).call(volcanoPlot_1); 
+        
+        //var plot_2 = d3.select('#chart2');
+        //plot_2.data([data]).call(volcanoPlot_2);
+
+        //var plot_3 = d3.select('#chart3');
+        //plot_3.data([data]).call(volcanoPlot_3);
+
+
+        var columns = ['Gene_id', 'log10sum_1', 'log2fc_1', 'log10sum_3', 'log2fc_3','log10sum_7', 'log2fc_7','Gene_acc','desc']
+        
+        tabulate(data, columns, '#table1')
+
+        
+        var table = $('#table1').DataTable({
+        
+        //dom: "Bfrtip",
+        dom: "lrtBp",
+        buttons: [
+             'csv'
+        ],
+        pageLength: 10,
+        filter: true,
+        "scrollX": true,
+        columns: [
+
+            { name: "Gene_id", title: 'Ids'},
+            { data: "log10sum_1", title: 'log10sum_1', 
+            render: $.fn.dataTable.render.number( '', '.', 2) },
+            { data: "log2fc_1" , title: 'log2fc_1', 
+            render: $.fn.dataTable.render.number( '', '.', 2)},
+            
+            { data: "log10sum_3", title: 'log10sum_3', 
+            render: $.fn.dataTable.render.number( '', '.', 2) },
+            { data: "log2fc_3" , title: 'log2fc_3', 
+            render: $.fn.dataTable.render.number( '', '.', 2)},
+
+            { data: "log10sum_7", title: 'log10sum_7', 
+            render: $.fn.dataTable.render.number( '', '.', 2) },
+            { data: "log2fc_7" , title: 'log2fc_7', 
+            render: $.fn.dataTable.render.number( '', '.', 2)},
+
+            { data: "Gene_acc", title: 'Gene Selector', "visible": false},
+            { data: "desc", title: 'desc'},
+
+        
+
+        ],});
+        
+        $("#searchbox").keyup(function() {
+            table.search(this.value).draw();
+        }); 
+
+        
+        //var x = data['log10sum_1'];
+        //var y = data['log2fc_1'];
+        //console.log(x)
+        var x1 = [];
+        var y1 = [];
+        var x2 = [];
+        var y2 = [];
+        var x3 = [];
+        var y3 = [];       
+        var names = [];
+        var desc = [];
+        data.forEach(function(d){
+
+            //console.log(d['log10sum_1']);
+            x1.push( numberParser(d['log2fc_1'])) ;
+            y1.push( numberParser(d['log10sum_1'])) ;
+            x2.push( numberParser(d['log2fc_3'])) ;
+            y2.push( numberParser(d['log10sum_3'])) ;
+            x3.push( numberParser(d['log2fc_7'])) ;
+            y3.push( numberParser(d['log10sum_7'])) ;
+
+            names.push( numberParser(d['Gene_id']+' '+d['desc'])) ;
+            desc.push( numberParser(d['desc'])) ;
+            
+        });
+        //console.log(desc);
+
+
+        var trace1 = {
+            x: x1,
+            y: y1,
+            mode: 'markers',
+            type: 'scatter',
+            name: '1vs5',
+            text: names,
+            marker: { size: 6 }
+        };
+        var data = [trace1];
+        var layout = {
+            title:'Data Labels Hover'
+            };
+        
+        Plotly.newPlot('chart1', data, layout);
+        var trace2 = {
+            x: x2,
+            y: y2,
+            mode: 'markers',
+            type: 'scatter',
+            name: '1vs5',
+            text: names,
+            marker: { size: 6 }
+        };
+        var data2 = [trace2];
+        var layout = {
+            title:'Data Labels Hover'
+            };
+        Plotly.newPlot('chart2', data2, layout);
+
+        
+        var trace3 = {
+            x: x3,
+            y: y3,
+            mode: 'markers',
+            type: 'scatter',
+            name: '1vs5',
+            text: names,
+            marker: { size: 6 }
+        };
+        var data3 = [trace3];
+        var layout = {
+            title:'Data Labels Hover'
+            };
+        Plotly.newPlot('chart3', data3, layout);
+
+        $('#table1 tbody').on('mouseover', 'tr', function () {
+
+
+
+
+            //console.log('click');
+            var data = table.row( this ).data();
+            //alert( 'You clicked on '+data[0]+'\'s row' );
+            //console.log(data);
+            var gene_acc = data['Gene_acc']
+            //console.log(data);
+            var selector = '#prot_1_'+gene_acc;
+            d3.select(selector).attr("r", "10").style("stroke",'violet').attr("stroke-width",'10');
+            //show_name(selector, 1)
+
+            var selector = '#prot_2_'+gene_acc;
+            d3.select(selector).attr("r", "10").style("stroke",'violet').attr("stroke-width",'10');
+
+            var selector = '#prot_3_'+gene_acc;
+            d3.select(selector).attr("r", "10").style("stroke",'violet').attr("stroke-width",'10');
+            //show_name(selector, 2)
+
+            AddTooltip('table1', "Hoover on me and I'll shine")
+
+            //$('#image_place img').remove();
+            //$('#image_place').prepend('<img class="img-responsive" style="padding-top: 5px" id="theImg" src="figs/'+gene_acc+'.png" />')
+
+
+
+        } );
+        //var tooltip = d3.selectAll('tr')
+                //.append("div")
+                //.attr('class', 'tooltip');
+
+        
+        $('#table1 tbody').on('mouseout', 'tr', function () {
+            //console.log('click');
+            var data = table.row( this ).data();
+            //alert( 'You clicked on '+data[0]+'\'s row' );
+            //console.log(data);
+            var gene_acc = data['Gene_acc']
+
+            
+            var selector = '#prot_1_'+gene_acc;
+            d3.select(selector).attr("r", "3").style("stroke",'')
+
+            var selector = '#prot_2_'+gene_acc;
+            d3.select(selector).attr("r", "3").style("stroke",'');
+
+            var selector = '#prot_3_'+gene_acc;
+            d3.select(selector).attr("r", "3").style("stroke",'');
+
+
+            d3.select("#t_1_"+data['Gene_acc']).remove();
+            d3.select("#t_2_"+data['Gene_acc']).remove();
+            d3.select("#t_3_"+data['Gene_acc']).remove();
+
+
+        } );
+
+
+
+        //console.log('tabe',d3.selectAll('#table1 tbody tr').enter().on('mouseenter', console.log('pippo')))
+        //.on('mouseenter', console.log('pippo'))
+
+
+        
+    });
+
+
+    var editor;
+
+    (function($) {
+        $.fn.invisible = function() {
+            return this.each(function() {
+                $(this).css("visibility", "hidden");
+            });
+        };
+        $.fn.visible = function() {
+            return this.each(function() {
+                $(this).css("visibility", "visible");
+            });
+        };
+    }(jQuery));
+    
+
+
+    //d3.select(selector).attr("r", "10")
+
+
+
+
+    // row parser to convert key values into numbers if possible
+    function parser(d) {
+        for (var key in d) {
+            if (d.hasOwnProperty(key)) {
+                d[key] = numberParser(d[key]);
+            }
+        }
+        return d;
+    }
+
+    // function to turn string into number if possible
+    function numberParser(value){
+        return (+value) ? +value : value;
+    }
+
+	
+    $(document).ready(function() {
+        
+        $("#spinner").invisible();
+    
+    } );
+
+    function AddTooltip(objectId,
+    message,
+    fadeAfterMs,
+    cssBackcolor,
+    cssWidth,
+    cssBorder) {
+
+    //distance of the tooltip from the cursor
+    const LEFT_FROM_CURSOR = 30;
+    const TOP_FROM_CURSOR = 5;
+
+    //constants used in the recalculation of left and top
+    const DISTANCE_FROM_RIGHT_BORDER = 20;
+    const ADDITIONAL_DISTANCE_FROM_BOTTOM = 50;
+    const BOX_HEIGHT = 50;
+
+    //at the minimum we need the element id and the message
+    if (objectId && message) {
+        var $tooltip;
+        
+        $('#' + objectId).on('mouseover', function (e) {
+
+            let left = e.originalEvent.pageX + LEFT_FROM_CURSOR;
+            let top = e.originalEvent.pageY + TOP_FROM_CURSOR;
+
+            //console.log(top);
+            //console.log(VisibleHeight());
+            //console.log(window.pageYOffset);
+            
+            //assigning values from parameters or default values
+            let width = !cssWidth ? '200px' : cssWidth;
+            let border = !cssBorder ? '1px solid black' : cssBorder;
+            let backcolor = !cssBackcolor ? 'aquamarine' : cssBackcolor;
+
+            //should the tooltip go over the window border on the right....            
+            if (left + parseInt(width)- window.pageXOffset > VisibleWidth()) {
+                left = VisibleWidth() - parseInt(width) - DISTANCE_FROM_RIGHT_BORDER;
+            }
+
+            ////should the tooltip go over the window border on the bottom....                    
+            if (top + BOX_HEIGHT - window.pageYOffset> VisibleHeight() ) {
+                top = top - BOX_HEIGHT;
+            }
+
+            //console.log(top + BOX_HEIGHT + ' ' + VisibleHeight());
+            //composing the html code for the tooltip div
+            let s = '<div style="' +
+                'border:' + border + ';' +
+                'padding-left:10px;' +
+                'padding-top:5px;' +
+                'padding-bottom:5px;' +
+                'z-index:1;' +
+                'opacity:0.7;'+
+                'border-radius:5px;' +
+                'font-size:small; ' +
+                'position: absolute;' +
+                'left:' + left.toString() + 'px;top:' + top.toString() + 'px;' +
+                'width:' + width + ";" +
+                'background-color: ' + backcolor + ';' +
+                'display:inline-block;">' +
+                message +
+                '</div>';
+
+            //tooltip appended to the body
+            $tooltip = $(s).appendTo('body');
+            $tooltip.attr('id', 'ttp-' + objectId);
+
+            //fading functionality set here
+            if (fadeAfterMs && fadeAfterMs > 0) {
+                setTimeout(Fade, fadeAfterMs);
+            }
+        });
+
+        $('#' + objectId).on('mouseout', function (e) {
+            $($tooltip).remove();
+        });
+    }
+    
+    function Fade() {
+        $($tooltip).fadeOut(2000, function () {
+            $($tooltip).remove();
+        });
+    }
+
+    function VisibleWidth() {
+        return window.innerWidth
+            || document.documentElement.clientWidth
+            || document.body.clientWidth
+            || 0;
+    }
+
+    function VisibleHeight() {
+        return window.innerHeight
+            || document.documentElement.clientHeight
+            || document.body.clientHeight
+            || 0;
+    }
+}
+    </script>
+
+    
+    <style>
+        th { font-size: 14px; }
+        td { font-size: 12px; }
+        label { font-size: 12px; }
+        .dataTables_info {font-size: 12px;}
+        .dataTables_paginate {font-size: 12px;}
+
+    </style>
+</body>
+</html>
